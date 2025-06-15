@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fama-French 4-Factor Portfolio Optimizer</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="container">
+                <h1>Fama-French 4-Factor Portfolio Optimizer</h1>
+                <p class="header-subtitle">Construct optimized portfolios matching target factor exposures</p>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Sidebar Controls -->
+            <aside class="sidebar">
+                <div class="card">
+                    <div class="card__header">
+                        <h3>Target Factor Exposures</h3>
+                    </div>
+                    <div class="card__body">
+                        <div class="factor-controls">
+                            <div class="form-group">
+                                <label class="form-label" for="mktrf-slider">
+                                    Market (MKT-RF): <span id="mktrf-value">1.0</span>
+                                </label>
+                                <input type="range" id="mktrf-slider" class="slider" min="0" max="2" step="0.1" value="1.0">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="smb-slider">
+                                    Size (SMB): <span id="smb-value">0.1</span>
+                                </label>
+                                <input type="range" id="smb-slider" class="slider" min="-0.5" max="0.5" step="0.05" value="0.1">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="hml-slider">
+                                    Value (HML): <span id="hml-value">0.1</span>
+                                </label>
+                                <input type="range" id="hml-slider" class="slider" min="-0.5" max="0.5" step="0.05" value="0.1">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="rmw-slider">
+                                    Profitability (RMW): <span id="rmw-value">0.1</span>
+                                </label>
+                                <input type="range" id="rmw-slider" class="slider" min="-0.3" max="0.3" step="0.05" value="0.1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card__header">
+                        <h3>Portfolio Constraints</h3>
+                    </div>
+                    <div class="card__body">
+                        <div class="form-group">
+                            <label class="form-label" for="max-weight">
+                                Max Weight per Asset (%): <span id="max-weight-value">25</span>
+                            </label>
+                            <input type="range" id="max-weight" class="slider" min="5" max="100" step="5" value="25">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="min-weight">
+                                Min Weight per Asset (%): <span id="min-weight-value">0</span>
+                            </label>
+                            <input type="range" id="min-weight" class="slider" min="0" max="10" step="1" value="0">
+                        </div>
+                    </div>
+                </div>
+
+                <button id="optimize-btn" class="btn btn--primary btn--full-width btn--lg">
+                    Optimize Portfolio
+                </button>
+
+                <div class="card education-card">
+                    <div class="card__header">
+                        <h3>Understanding the 4-Factor Model</h3>
+                        <button id="toggle-education" class="btn btn--secondary btn--sm">Show Details</button>
+                    </div>
+                    <div class="card__body" id="education-content" style="display: none;">
+                        <div class="factor-explanation">
+                            <h4>Market (MKT-RF)</h4>
+                            <p>Excess return of the market portfolio over the risk-free rate. Represents systematic risk that affects all stocks. 1.0 = market-neutral, >1.0 = more aggressive than market.</p>
+                        </div>
+                        <div class="factor-explanation">
+                            <h4>Size (SMB)</h4>
+                            <p>Small Minus Big - return difference between small-cap and large-cap stocks. Positive = small-cap tilt, Negative = large-cap tilt.</p>
+                        </div>
+                        <div class="factor-explanation">
+                            <h4>Value (HML)</h4>
+                            <p>High Minus Low book-to-market ratio. Measures value premium over growth stocks. Positive = value tilt, Negative = growth tilt.</p>
+                        </div>
+                        <div class="factor-explanation">
+                            <h4>Profitability (RMW)</h4>
+                            <p>Robust Minus Weak operating profitability. Quality factor for profitable companies. Positive = quality tilt toward profitable companies.</p>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Results Area -->
+            <main class="results-area">
+                <div id="loading-state" class="loading-state" style="display: none;">
+                    <div class="loading-spinner"></div>
+                    <p>Optimizing portfolio...</p>
+                </div>
+
+                <div id="results-content" class="results-content" style="display: none;">
+                    <!-- Charts Section -->
+                    <div class="charts-grid">
+                        <div class="card chart-card">
+                            <div class="card__header">
+                                <h3>Portfolio Allocation</h3>
+                            </div>
+                            <div class="card__body">
+                                <div class="chart-container">
+                                    <canvas id="allocation-chart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card chart-card">
+                            <div class="card__header">
+                                <h3>Factor Exposure Comparison</h3>
+                            </div>
+                            <div class="card__body">
+                                <div class="chart-container">
+                                    <canvas id="exposure-chart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Portfolio Weights Table -->
+                    <div class="card">
+                        <div class="card__header">
+                            <h3>Portfolio Weights</h3>
+                            <button id="export-btn" class="btn btn--secondary btn--sm">Export CSV</button>
+                        </div>
+                        <div class="card__body">
+                            <div class="table-container">
+                                <table id="weights-table" class="weights-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Asset</th>
+                                            <th>Weight (%)</th>
+                                            <th>Market β</th>
+                                            <th>Size β</th>
+                                            <th>Value β</th>
+                                            <th>Profit β</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Performance Metrics -->
+                    <div class="metrics-grid">
+                        <div class="card metric-card">
+                            <div class="card__body">
+                                <h4>Tracking Error</h4>
+                                <div class="metric-value" id="tracking-error">-</div>
+                            </div>
+                        </div>
+                        <div class="card metric-card">
+                            <div class="card__body">
+                                <h4>Effective Assets</h4>
+                                <div class="metric-value" id="effective-assets">-</div>
+                            </div>
+                        </div>
+                        <div class="card metric-card">
+                            <div class="card__body">
+                                <h4>Max Weight</h4>
+                                <div class="metric-value" id="max-weight-achieved">-</div>
+                            </div>
+                        </div>
+                        <div class="card metric-card">
+                            <div class="card__body">
+                                <h4>Diversification Ratio</h4>
+                                <div class="metric-value" id="diversification-ratio">-</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Factor Exposure Details -->
+                    <div class="card">
+                        <div class="card__header">
+                            <h3>Factor Exposure Analysis</h3>
+                        </div>
+                        <div class="card__body">
+                            <div class="table-container">
+                                <table id="exposure-table" class="exposure-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Factor</th>
+                                            <th>Target</th>
+                                            <th>Portfolio</th>
+                                            <th>Difference</th>
+                                            <th>Squared Error</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="initial-state" class="initial-state">
+                    <div class="empty-state">
+                        <h2>Portfolio Optimizer Ready</h2>
+                        <p>Set your target factor exposures and constraints in the sidebar, then click "Optimize Portfolio" to generate your custom portfolio allocation.</p>
+                        <div class="feature-highlights">
+                            <div class="feature">
+                                <h4>🎯 Precise Factor Targeting</h4>
+                                <p>Match specific exposures to market, size, value, and profitability factors</p>
+                            </div>
+                            <div class="feature">
+                                <h4>📊 Visual Analytics</h4>
+                                <p>Interactive charts showing allocation and factor comparisons</p>
+                            </div>
+                            <div class="feature">
+                                <h4>⚡ Real-time Optimization</h4>
+                                <p>Advanced algorithms minimize tracking error to your targets</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
